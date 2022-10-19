@@ -1,0 +1,44 @@
+import requests as rq
+import bs4
+import pandas as pd
+import openpyxl
+
+#url='https://kf.expert/gorod/search?page=1&pay_type_ids=1&separ_group_id=r1&bedrooms_multi=1&price_from=3%20000%20000&price_to=30%20000%20000&currency_alias=rur&prices_key_prefix=sale_from_all&sessionId=123456'
+url1= 'https://kf.expert/gorod/search?page=1&pay_type_ids=1&separ_group_id=r1&bedrooms_multi=1&price_from=3%20000%20000&price_to=50%20000%20000&currency_alias=rur&prices_key_prefix=sale_from_all&sessionId=123456'
+
+hrefs = [] # Списки
+prices = []
+numbs = []
+
+#res=rq.get(url1)
+#res.raise_for_status()
+#soup = bs4.BeautifulSoup(res.text, 'html.parser')
+# First try
+
+html = rq.get(url1).text
+soup = bs4.BeautifulSoup(html, 'html.parser') # Second try, but anyway
+
+div = soup.find_all('div', attrs={'class': ['listing-cards__container', 'card__title', 'a']})
+for item in div:
+    href = item.select_one("a").get("href")
+    hrefs.append('https://kf.expert/' + href)
+
+del hrefs[0] # Удалить элемент массива, есть метод рор()
+print(hrefs)
+
+i = 0
+while i<len(hrefs):
+    html1 = rq.get(hrefs[i]).text
+    soup1 = bs4.BeautifulSoup(html1, 'html.parser')
+    price = soup1.find(attrs={'class': ['detail-jk-preview__price-item detail-jk-preview__price-item--']}).get_text('spun', strip=True)
+    prices.append(price)
+    numb = soup1.find(attrs={'class': ['comagic_phone']}).get_text('a', strip=True)
+    numbs.append(numb)
+    i += 1
+print(prices)
+print(numbs)
+
+df = pd.DataFrame({'Ссылки': hrefs, 'Цены': prices, 'Номера': numbs}) # Запись в excel
+writer = pd.ExcelWriter('parser.xlsx')
+df.to_excel(writer, index=False) # Запись без нумерации
+writer.save()
