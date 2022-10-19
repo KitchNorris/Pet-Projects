@@ -1,0 +1,60 @@
+from vkbottle import GroupEventType, GroupTypes, Keyboard, KeyboardButtonColor, Text, VKAPIError
+from vkbottle.bot import Bot, Message
+import requests as rq
+import pandas as pd
+from openpyxl import load_workbook
+
+api = 'https://api.opendota.com/api/proMatches'
+res = rq.get(api).json()
+bot = Bot(token="vk1.a.7q4J19iZ82L53gfk6ixSW22Yg0i--M7P2h89bVSFhF-tq58jvB65gQb1Lsn3qV2xf_SQEZ_thkaaa591qHd1wWcyjIqI0t6maOKFXz-73C5hJoV-gwTy6qyGqzgtjid1soBt-SjIJSVEDV2XpKE65-giZta8MBSGCc2wM-dmjJFmozY9A-FQw3HRTjpSQu0D")
+
+KEYBOARD = Keyboard(one_time=False)
+KEYBOARD.add(Text("Последний матч", {"cmd": 1}), KeyboardButtonColor.POSITIVE)#.get_json()
+KEYBOARD.row()
+KEYBOARD.add(Text("Матчи за сегодня", payload={"cmd": 2}), KeyboardButtonColor.NEGATIVE)
+
+
+@bot.on.message(text=["привет", "Привет", "Хай"])
+async def hi_handler(message: Message):
+    users_info = await bot.api.users.get(message.from_id)
+    await message.answer("Привет, {}, можешь пользоваться кнопками".format(users_info[0].first_name))
+
+
+@bot.on.message(payload={"cmd": 1})
+async def eat_handler(message: Message):
+    df = pd.DataFrame(res).head(1)  # Запись в excel
+    writer = pd.ExcelWriter('dota.xlsx')
+    df.to_excel(writer, index=False)  # Запись без нумерации
+    writer.save()
+
+    wb = load_workbook(filename='dota.xlsx')  # Открыть файл и получить доступ к ячейке
+    sheet_ranges = wb['Sheet1']
+    ex = ['E2', 'G2', 'I2', 'L2', 'M2', 'N2']  # Нужные ячейки
+    ye = []  # Данные из ячеек
+    for a in ex:
+        ye.append(sheet_ranges[a].value)
+
+    fstr = f'Команда сил света: {ye[0]} | Счёт убийств: {ye[3]}'
+    sstr = f'Команда сил тьмы: {ye[1]} | Счёт убийств: {ye[4]}'
+    tstr = f'Лига: {ye[2]}'
+    print(fstr)  # Отправка сообщений на консоль и в вк
+    print(sstr)
+    print(tstr)
+    await message.answer(fstr, keyboard=KEYBOARD)
+    await message.answer(sstr, keyboard=KEYBOARD)
+    await message.answer(tstr, keyboard=KEYBOARD)
+
+    if ye[5] == True:
+        print('Победа сил света!')
+        await message.answer('Победа сил света!', keyboard=KEYBOARD)
+    else:
+        print('Победа сил тьмы!')
+        await message.answer('Победа сил тьмы!', keyboard=KEYBOARD)
+
+
+@bot.on.message(payload={"cmd": 2})
+async def eat_handler(message: Message):
+    await message.answer("А тут матчи за сегодня, но их овер много, поэтому вот ссылка"
+                         " https://www.opendota.com/matches/pro!!!", keyboard=KEYBOARD)
+
+bot.run_forever()
